@@ -1,11 +1,16 @@
 package botelements;
 
 import java.io.*;
+import java.lang.reflect.InvocationTargetException;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
 
+import Utility.JavaSourceCompiler;
 import Utility.NFA;
 import Utility.Trie;
 import botelements.messageelements.BotMessage;
@@ -107,6 +112,9 @@ public class Bot {
             responses = (HashMap<String, ArrayList<BotMessage>>) objectInputStream.readObject();
             resources = (HashMap<String, Trie>) objectInputStream.readObject();
             programs = (HashMap<String, String>) objectInputStream.readObject();
+            for (Map.Entry<String, String> program:programs.entrySet()) {
+                JavaSourceCompiler.compileString(program.getValue(), program.getKey());
+            }
             return true;
 
         } catch (Exception e) {
@@ -893,6 +901,56 @@ public class Bot {
             }
         };
         commandSet.add(commandToAdd);
+
+        //.NewProgram
+        commandToAdd = new Command();
+        commandToAdd.commandName = ".NewProgram";
+        commandToAdd.permission = Command.WHITE;
+        commandToAdd.tokens.add("");
+        commandToAdd.tokens.add("");
+        commandToAdd.function = new CommandFunction() {
+            public void doFunction(Command command, Message message) {
+                Pair<String, Boolean> compileResult = JavaSourceCompiler.compileString(command.tokens.get(1), command.tokens.get(0));
+                if (compileResult.getValue()) {
+                    message.reply("Program successfully added.");
+                    programs.put(command.tokens.get(0), command.tokens.get(1));
+                } else
+                    message.reply("Program has the following errors:" + compileResult);
+            }
+        };
+        commandSet.add(commandToAdd);
+
+        //.RemoveProgram
+        commandToAdd = new Command();
+        commandToAdd.commandName = ".RemoveProgram";
+        commandToAdd.permission = Command.WHITE;
+        commandToAdd.tokens.add("");
+        commandToAdd.function = new CommandFunction() {
+            public void doFunction(Command command, Message message) {
+                if (programs.remove(command.tokens.get(0)) != null) {
+                    message.reply("Program successfully removed.");
+                } else
+                    message.reply("Program does not exist.");
+            }
+        };
+        commandSet.add(commandToAdd);
+
+        //.ListPrograms
+        commandToAdd = new Command();
+        commandToAdd.commandName = ".ListPrograms";
+        commandToAdd.permission = Command.WHITE;
+        commandToAdd.function = new CommandFunction() {
+            public void doFunction(Command command, Message message) {
+                if (programs.keySet().size() != 0) {
+                    String keys = "List of programs:";
+                    for (String key : programs.keySet())
+                        keys = keys + "\n" + key;
+                    message.reply(keys);
+                } else
+                    message.reply("No programs exit.");
+            }
+        };
+        commandSet.add(commandToAdd);
     }
 
     private boolean isValidResource(String name) {
@@ -1095,6 +1153,29 @@ public class Bot {
         return result;
     }
 
+    private String runResponseProgram(String className, String functionName, String[] inputs, Message message, BotMessage response, String messageCategory) {
+        Object[] args = {inputs, message};
+
+        Class funcClass = JavaSourceCompiler.loadedClasses.get(className);
+        if (funcClass == null)
+            return "";
+        Object ret = null;
+        try {
+            ret = funcClass.getDeclaredMethod(functionName, String[].class, Message.class).invoke(null, args);
+        } catch (IllegalAccessException e) {
+            e.printStackTrace();
+        } catch (InvocationTargetException e) {
+            e.printStackTrace();
+            warnAuthor("There seems to be a problem with the function: ``" + functionName + "`` of class: ``" + className + "`` response: ``" + response.message + "`` of category ``" + messageCategory +"``" ,api.getUserById(response.author));
+            return "";
+        } catch (NoSuchMethodException e) {
+            e.printStackTrace();
+        }
+        return (String)ret;
+    }
+
+
+
     private String generateResponse(Pair<String, Pair<BotMessage, int[]>> category, Message message) {
         String senderMentionTag = message.getAuthor().getMentionTag();
         String content = message.getContent();
@@ -1123,26 +1204,26 @@ public class Bot {
 
         minimumDanglingRecourseCount = catResponses.get(0).messageParts.size();
 
-        for (BotMessage response : catResponses) {
+        nextResponse: for (BotMessage response : catResponses) {
 
             //check if the resources used in the response actually exists
             for (MessagePart messagePart : response.messageParts)
                 if (messagePart.type == MessagePart.MessagePartType.Resource) {
                     if (!isValidResource(messagePart.resource.name)) {
                         warnAuthor("The resource: ``" + messagePart.resource.name + "`` used in response: ``" + response.message + "`` of category``" + category.getKey() + "`` does not exist.", api.getUserById(response.author));
-                        continue;
+                        continue nextResponse;
                     }
                 } else if (messagePart.type == MessagePart.MessagePartType.Program) {
                     for (ResourceMessagePart argument : messagePart.program.arguments)
                         if (!isValidResource(argument.name)) {
                             warnAuthor("The resource: ``" + argument.name + "`` used in response: ``" + response.message + "`` of category``" + category.getKey() + "`` does not exist.", api.getUserById(response.author));
-                            continue;
+                            continue nextResponse;
                         }
                 }
 
             //check test message privilege
             if (message.getChannelReceiver() != null && response.isTestFeature && !testChannels.contains(message.getChannelReceiver().getMentionTag()))
-                continue;
+                continue nextResponse;
 
             boolean isPerfect = true;
             int numberOfDanglingResources = 0;
@@ -1175,7 +1256,38 @@ public class Bot {
                         isPerfect = isPerfect && resourceIsPerfect;
                     }
                 } else if (responseMessagePart.type == MessagePart.MessagePartType.Program) {
+                    if (!JavaSourceCompiler.classExists(responseMessagePart.program.className)) {
+                        warnAuthor("Class: ``" + responseMessagePart.program.className + "`` used in message ``" + response.message + "`` of category ``" + category.getKey() + "`` does not exist.", api.getUserById(response.author));
+                        continue nextResponse;
+                    } else if (!JavaSourceCompiler.functionExists(responseMessagePart.program.className, responseMessagePart.program.functionName)) {
+                        warnAuthor("Function: ``" + responseMessagePart.program.functionName + "`` of class: ``" + responseMessagePart.program.className + "`` used in message ``" + response.message + "`` of category ``" + category.getKey() + "`` does not exist.", api.getUserById(response.author));
+                        continue nextResponse;
+                    }
 
+                    for (ResourceMessagePart currentArgument : responseMessagePart.program.arguments) {
+                        boolean resourceIsPerfect = false;
+                        int i = 0;
+                        if (currentArgument.id != -1) {
+                            Pair<String, ResourceMessagePart> compatibleResource = null;
+                            for (Pair<String, ResourceMessagePart> resource : messageResources) {
+                                if (resource.getValue().equals(currentArgument)) {
+                                    compatibleResource = resource;
+                                    if (!isInUse[i]) {
+                                        resourceIsPerfect = true;
+                                        isInUse[i] = true;
+                                        break;
+                                    }
+                                }
+                                i++;
+                            }
+                            if (compatibleResource == null) {
+                                numberOfDanglingResources++;
+                                if (currentArgument.name.equals("*"))
+                                    continue;
+                            }
+                            isPerfect = isPerfect && resourceIsPerfect;
+                        }
+                    }
                 }
             if (numberOfDanglingResources < minimumDanglingRecourseCount) {
                 minimumDanglingRecourseCount = numberOfDanglingResources;
@@ -1204,6 +1316,9 @@ public class Bot {
 
         String generatedResponse = "";
 
+        for (int i=0; i<isInUse.length; i++)
+            isInUse[i] = false;
+
         for (MessagePart currentMessagePart : response.messageParts) {
             switch (currentMessagePart.type) {
                 case RawMessage: {
@@ -1220,14 +1335,39 @@ public class Bot {
                     if (currentMessagePart.resource.id == -1) {
                         generatedResponse = generatedResponse + buildResource(currentMessagePart.resource);
                     } else {
-                        for (int i=0; i<isInUse.length; i++)
+                        for (int i = 0; i < isInUse.length; i++)
                             isInUse[i] = false;
 
                         int i = 0;
-                        if (currentMessagePart.resource.id != -1) {
+                        Pair<String, ResourceMessagePart> compatibleResource = null;
+                        for (Pair<String, ResourceMessagePart> resource : messageResources) {
+                            if (resource.getValue().equals(currentMessagePart.resource)) {
+                                compatibleResource = resource;
+                                if (!isInUse[i]) {
+                                    isInUse[i] = true;
+                                    break;
+                                }
+                            }
+                            i++;
+
+                            if (compatibleResource != null)
+                                generatedResponse = generatedResponse + compatibleResource.getKey();
+                            else
+                                generatedResponse = generatedResponse + buildResource(currentMessagePart.resource);
+
+                        }
+                    }
+                    break;
+                }
+                case Program: {
+                    String[] args = new String[currentMessagePart.program.arguments.size()];
+                    for (int j = 0; j < args.length; j++) {
+                        ResourceMessagePart currentArgument = currentMessagePart.program.arguments.get(j);
+                        int i = 0;
+                        if (currentArgument.id != -1) {
                             Pair<String, ResourceMessagePart> compatibleResource = null;
                             for (Pair<String, ResourceMessagePart> resource : messageResources) {
-                                if (resource.getValue().equals(currentMessagePart.resource)) {
+                                if (resource.getValue().equals(currentArgument)) {
                                     compatibleResource = resource;
                                     if (!isInUse[i]) {
                                         isInUse[i] = true;
@@ -1237,23 +1377,20 @@ public class Bot {
                                 i++;
                             }
                             if (compatibleResource != null)
-                                generatedResponse = generatedResponse + compatibleResource.getKey();
+                                args[j] = compatibleResource.getKey();
                             else
-                                generatedResponse = generatedResponse + buildResource(currentMessagePart.resource);
-                        }
+                                args[j] = buildResource(currentArgument);
+                        } else
+                            args[j] = buildResource(currentArgument);
                     }
-                    break;
-                }
-                case Program: {
+                    String programResponse = runResponseProgram(currentMessagePart.program.className, currentMessagePart.program.functionName, args, message, response, category.getKey());
+                    if (programResponse == null)
+                        return null;
+                    generatedResponse = generatedResponse + programResponse;
                     break;
                 }
             }
         }
-
-
-
-
-
         return generatedResponse;
     }
 

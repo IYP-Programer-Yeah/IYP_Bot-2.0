@@ -208,6 +208,8 @@ PositiveDecimalIntegerConstant = [+]?{DecimalDigit}+
 		yybegin(RESOURCE_STATE);
 	}
 	[\)] {
+	}
+	[\~] {
 		yybegin(YYINITIAL);
 	}
 	[\,] {

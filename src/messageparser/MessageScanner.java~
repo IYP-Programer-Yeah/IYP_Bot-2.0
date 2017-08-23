@@ -641,7 +641,8 @@ public class MessageScanner {
         zzAtEOF = true;
             switch (zzLexicalState) {
             case YYINITIAL: {
-              return message;
+              message.messageParts.add(currentPart);
+		return message;
             }
             case 49: break;
             case RESOURCE_STATE: {
@@ -676,7 +677,6 @@ public class MessageScanner {
         switch (zzAction < 0 ? zzAction : ZZ_ACTION[zzAction]) {
           case 1: 
             { currentPart.rawMessage = currentPart.rawMessage + yytext();
-		message.messageParts.add(currentPart);
             }
           case 24: break;
           case 2: 

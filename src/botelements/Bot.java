@@ -112,9 +112,53 @@ public class Bot {
             responses = (HashMap<String, ArrayList<BotMessage>>) objectInputStream.readObject();
             resources = (HashMap<String, Trie>) objectInputStream.readObject();
             programs = (HashMap<String, String>) objectInputStream.readObject();
-            for (Map.Entry<String, String> program:programs.entrySet()) {
+
+            for (Map.Entry<String, String> program:programs.entrySet())
                 JavaSourceCompiler.compileString(program.getValue(), program.getKey());
-            }
+
+            return true;
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+    public boolean mergeDatabase (String saveName) {
+        File database=new File(saveDirectory + saveName);
+
+        try {
+            ObjectInputStream objectInputStream = new ObjectInputStream(new FileInputStream(database));
+
+            HashMap<String, ArrayList<BotMessage>> messages = (HashMap<String, ArrayList<BotMessage>>) objectInputStream.readObject();
+            HashMap<String, ArrayList<BotMessage>>responses = (HashMap<String, ArrayList<BotMessage>>) objectInputStream.readObject();
+            HashMap<String, Trie> resources = (HashMap<String, Trie>) objectInputStream.readObject();
+            HashMap<String, String> programs = (HashMap<String, String>) objectInputStream.readObject();
+
+            for (Map.Entry<String, String> program:programs.entrySet())
+                JavaSourceCompiler.compileString(program.getValue(), program.getKey());
+
+            this.programs.putAll(programs);
+
+            for (Map.Entry<String, Trie> entry:resources.entrySet())
+                if (this.resources.containsKey(entry.getKey()))
+                    for (String key:resources.get(entry.getKey()).getKeys())
+                        this.resources.get(entry.getKey()).put(key, true);
+                else
+                    this.resources.put(entry.getKey(), entry.getValue());
+
+            for (Map.Entry<String, ArrayList<BotMessage>> entry:messages.entrySet())
+                if (this.messages.containsKey(entry.getKey()))
+                    this.messages.get(entry.getKey()).addAll(entry.getValue());
+                else
+                    this.messages.put(entry.getKey(), entry.getValue());
+
+            for (Map.Entry<String, ArrayList<BotMessage>> entry:responses.entrySet())
+                if (this.responses.containsKey(entry.getKey()))
+                    this.responses.get(entry.getKey()).addAll(entry.getValue());
+                else
+                    this.responses.put(entry.getKey(), entry.getValue());
+
             return true;
 
         } catch (Exception e) {
@@ -757,6 +801,22 @@ public class Bot {
         commandSet.add(commandToAdd);
 
 
+        //.LoadDatabase
+        commandToAdd = new Command();
+        commandToAdd.commandName = ".LoadDatabase";
+        commandToAdd.permission = Command.WHITE;
+        commandToAdd.tokens.add("");
+        commandToAdd.function = new CommandFunction() {
+            public void doFunction(Command command, Message message) {
+                if (loadDatabase(command.tokens.get(0)))
+                    message.reply("Database successfully merged.");
+                else
+                    message.reply("There was a problem on merging the database, try again.");
+            }
+        };
+        commandSet.add(commandToAdd);
+
+
         //.Reset
         commandToAdd = new Command();
         commandToAdd.commandName = ".Reset";
@@ -784,6 +844,7 @@ public class Bot {
                     return;
                 }
                 testChannels.add(message.getChannelReceiver().getMentionTag());
+                savePermissions();
                 message.reply("Channel added to test channels.");
             }
         };
@@ -801,6 +862,7 @@ public class Bot {
                     return;
                 }
                 testChannels.remove(message.getChannelReceiver().getMentionTag());
+                savePermissions();
                 message.reply("Channel removed from test channels.");
             }
         };

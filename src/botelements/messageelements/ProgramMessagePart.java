@@ -16,4 +16,14 @@ public class ProgramMessagePart implements Serializable{
                 return false;
         return className != null && functionName != null && className.length() > 0 && functionName.length() > 0;
     }
+    public void normalizeArguments() {
+        for (int i = 0; i < arguments.size(); i++)
+            if (arguments.get(i).count > 0){
+                for (int j = 1; j < arguments.get(i).count; j++) {
+                    arguments.add(i, arguments.get(i));
+                    i++;
+                }
+                arguments.get(i).count = 1;
+            }
+    }
 }

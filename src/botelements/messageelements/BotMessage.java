@@ -30,7 +30,8 @@ public class BotMessage implements Serializable{
                     i++;
                 }
                 messageParts.get(i).resource.count = 1;
-            }
+            } else if (messageParts.get(i).type == MessagePart.MessagePartType.Program)
+                messageParts.get(i).program.normalizeArguments();
     }
 
     public int findPreviousVariablesSizeMessagePart (int i) {

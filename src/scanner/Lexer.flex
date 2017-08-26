@@ -72,6 +72,9 @@ Command = [\.\?\+\-\*\/\?\!\@\'a-zA-Z0-9]+
 	"\\]" {
 		currentToken = currentToken + "]";
 	}
+	"\\[" {
+		currentToken = currentToken + "[";
+	}
 	[\]] {
 		bracketCounter--;
 		if (bracketCounter == 0) {

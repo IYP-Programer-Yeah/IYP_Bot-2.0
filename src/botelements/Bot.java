@@ -2,9 +2,6 @@ package botelements;
 
 import java.io.*;
 import java.lang.reflect.InvocationTargetException;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.net.URLClassLoader;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -15,8 +12,10 @@ import Utility.NFA;
 import Utility.Trie;
 import botelements.messageelements.BotMessage;
 import botelements.messageelements.MessagePart;
+import botelements.messageelements.ProgramMessagePart;
 import botelements.messageelements.ResourceMessagePart;
 import com.google.common.util.concurrent.FutureCallback;
+import com.sun.org.apache.xpath.internal.operations.Bool;
 import de.btobastian.javacord.DiscordAPI;
 import de.btobastian.javacord.Javacord;
 import de.btobastian.javacord.entities.User;
@@ -38,7 +37,8 @@ public class Bot {
 
     private HashMap<String, ArrayList<BotMessage>> messages = new HashMap<String, ArrayList<BotMessage>>();
     private HashMap<String, ArrayList<BotMessage>> responses = new HashMap<String, ArrayList<BotMessage>>();
-    private HashMap<String, Trie> resources = new HashMap<String, Trie>();
+    private HashMap<String, Trie> resourcesCS = new HashMap<String, Trie>();
+    private HashMap<String, Trie> resourcesCI = new HashMap<String, Trie>();
     private HashMap<String, String> programs = new HashMap<String, String>();
 
 
@@ -92,7 +92,8 @@ public class Bot {
 
             objectOutputStream.writeObject(messages);
             objectOutputStream.writeObject(responses);
-            objectOutputStream.writeObject(resources);
+            objectOutputStream.writeObject(resourcesCS);
+            objectOutputStream.writeObject(resourcesCI);
             objectOutputStream.writeObject(programs);
             return true;
 
@@ -110,7 +111,8 @@ public class Bot {
 
             messages = (HashMap<String, ArrayList<BotMessage>>) objectInputStream.readObject();
             responses = (HashMap<String, ArrayList<BotMessage>>) objectInputStream.readObject();
-            resources = (HashMap<String, Trie>) objectInputStream.readObject();
+            resourcesCS = (HashMap<String, Trie>) objectInputStream.readObject();
+            resourcesCI = (HashMap<String, Trie>) objectInputStream.readObject();
             programs = (HashMap<String, String>) objectInputStream.readObject();
 
             for (Map.Entry<String, String> program:programs.entrySet())
@@ -122,6 +124,14 @@ public class Bot {
             e.printStackTrace();
         }
         return false;
+    }
+
+    public void resetDatabase () {
+        messages = new HashMap<String, ArrayList<BotMessage>>();
+        responses = new HashMap<String, ArrayList<BotMessage>>();
+        resourcesCS = new HashMap<String, Trie>();
+        resourcesCI = new HashMap<String, Trie>();
+        programs = new HashMap<String, String>();
     }
 
     public boolean mergeDatabase (String saveName) {
@@ -141,11 +151,18 @@ public class Bot {
             this.programs.putAll(programs);
 
             for (Map.Entry<String, Trie> entry:resources.entrySet())
-                if (this.resources.containsKey(entry.getKey()))
+                if (this.resourcesCS.containsKey(entry.getKey()))
                     for (String key:resources.get(entry.getKey()).getKeys())
-                        this.resources.get(entry.getKey()).put(key, true);
+                        this.resourcesCS.get(entry.getKey()).put(key, true);
                 else
-                    this.resources.put(entry.getKey(), entry.getValue());
+                    this.resourcesCS.put(entry.getKey(), entry.getValue());
+
+            for (Map.Entry<String, Trie> entry:resources.entrySet())
+                if (this.resourcesCI.containsKey(entry.getKey()))
+                    for (String key:resources.get(entry.getKey()).getKeys())
+                        this.resourcesCI.get(entry.getKey()).put(key, true);
+                else
+                    this.resourcesCI.put(entry.getKey(), entry.getValue());
 
             for (Map.Entry<String, ArrayList<BotMessage>> entry:messages.entrySet())
                 if (this.messages.containsKey(entry.getKey()))
@@ -342,10 +359,11 @@ public class Bot {
         commandToAdd.tokens.add("");
         commandToAdd.function = new CommandFunction() {
             public void doFunction(Command command, Message message) {
-                if (resources.containsKey(command.tokens.get(0))) {
+                if (resourcesCS.containsKey(command.tokens.get(0))) {
                     message.reply("Resource already exists.");
                 } else {
-                    resources.put(command.tokens.get(0), new Trie());
+                    resourcesCS.put(command.tokens.get(0), new Trie());
+                    resourcesCI.put(command.tokens.get(0), new Trie());
                     message.reply("Resource added.");
                 }
             }
@@ -376,8 +394,9 @@ public class Bot {
         commandToAdd.tokens.add("");
         commandToAdd.function = new CommandFunction() {
             public void doFunction(Command command, Message message) {
-                if (resources.containsKey(command.tokens.get(0))) {
-                    resources.remove(command.tokens.get(0));
+                if (resourcesCS.containsKey(command.tokens.get(0))) {
+                    resourcesCS.remove(command.tokens.get(0));
+                    resourcesCI.remove(command.tokens.get(0));
                     message.reply("Resource removed.");
                 } else
                     message.reply("Resource doesn't exist.");
@@ -391,10 +410,14 @@ public class Bot {
         commandToAdd.permission = Command.WHITE;
         commandToAdd.tokens.add("");
         commandToAdd.tokens.add("");
+        commandToAdd.noUpperBoundForTokenCount = true;
         commandToAdd.function = new CommandFunction() {
             public void doFunction(Command command, Message message) {
-                if (resources.containsKey(command.tokens.get(0))) {
-                    resources.get(command.tokens.get(0)).put(command.tokens.get(1), true);
+                if (resourcesCS.containsKey(command.tokens.get(0))) {
+                    for (int i=1;i<command.tokens.size();i++) {
+                        resourcesCS.get(command.tokens.get(0)).put(command.tokens.get(i), true);
+                        resourcesCI.get(command.tokens.get(0)).put(command.tokens.get(i).toLowerCase(), true);
+                    }
                     message.reply("Added to resource.");
                 } else
                     message.reply("Resource doesn't exist.");
@@ -410,12 +433,17 @@ public class Bot {
         commandToAdd.tokens.add("");
         commandToAdd.function = new CommandFunction() {
             public void doFunction(Command command, Message message) {
-                if (resources.containsKey(command.tokens.get(0))) {
-                    if (resources.get(command.tokens.get(0)).remove(command.tokens.get(1)) == null) {
+                if (resourcesCS.containsKey(command.tokens.get(0))) {
+                    if (resourcesCS.get(command.tokens.get(0)).remove(command.tokens.get(1)) == null) {
                         message.reply("Element did not exist in the resource.");
                         return;
                     }
                     message.reply("Removed from resource.");
+                    String resourceCI = command.tokens.get(1).toLowerCase();
+                    for (String element : resourcesCS.get(command.tokens.get(0)).getKeys())
+                        if (element.toLowerCase().equals(resourceCI))
+                            return;
+                    resourcesCI.remove(resourceCI);
                 } else
                     message.reply("Resource doesn't exist.");
             }
@@ -428,11 +456,11 @@ public class Bot {
         commandToAdd.permission = Command.WHITE;
         commandToAdd.function = new CommandFunction() {
             public void doFunction(Command command, Message message) {
-                if (resources.isEmpty()) {
+                if (resourcesCS.isEmpty()) {
                     message.reply("There are no resources.");
                 } else {
                     String keys = "List of resources:";
-                    for (String key : resources.keySet())
+                    for (String key : resourcesCS.keySet())
                         keys = keys + "\n" + key;
                     message.reply(keys);
                 }
@@ -465,10 +493,10 @@ public class Bot {
         commandToAdd.tokens.add("");
         commandToAdd.function = new CommandFunction() {
             public void doFunction(Command command, Message message) {
-                if (resources.containsKey(command.tokens.get(0))) {
-                    if (resources.get(command.tokens.get(0)).getKeys().size() != 0){
+                if (resourcesCS.containsKey(command.tokens.get(0))) {
+                    if (resourcesCS.get(command.tokens.get(0)).getKeys().size() != 0){
                         String keys = "Resource ``" + command.tokens.get(0) + "`` contains elements:";
-                        for (String key : resources.get(command.tokens.get(0)).getKeys())
+                        for (String key : resourcesCS.get(command.tokens.get(0)).getKeys())
                             keys = keys + "\n" + key;
                         message.reply(keys);
                     } else
@@ -491,7 +519,7 @@ public class Bot {
                     if (catMessages.size() != 0){
                         String result = "Category  ``" + command.tokens.get(0) + "`` contains messages:";
                         for (int i=0; i<catMessages.size(); i++)
-                            result = result + "\n" + i + catMessages.get(i).message;
+                            result = result + "\n" + i + ": " + catMessages.get(i).message;
                         message.reply(result);
                     } else
                         message.reply("Category ``" + command.tokens.get(0) + "`` contains no messages.");
@@ -513,7 +541,7 @@ public class Bot {
                     if (catResponses.size() != 0){
                         String result = "Category  " + command.tokens.get(0) + " contains responses:";
                         for (int i=0; i<catResponses.size(); i++)
-                            result = result + "\n" + i + catResponses.get(i).message;
+                            result = result + "\n" + i + ": " + catResponses.get(i).message;
                         message.reply(result);
                     } else
                         message.reply("Category ``" + command.tokens.get(0) + "`` contains no responses.");
@@ -596,12 +624,89 @@ public class Bot {
                                 return;
                             }
 
-                            botMessage.message = command.tokens.get(2);
                             botMessage.normalizeResources();
-                            botMessage.author = message.getAuthor().getId();
 
-                            catMessages.set(index,botMessage);
-                            message.reply("Message successfully edited.");
+                            Pair<Boolean, Integer> argumentEvaluationResult =  botMessage.evaluateProgramsArgumentResourceIndices(botMessage.getAvailableResources());
+
+                            if (botMessage.hasForwardReferencing() || argumentEvaluationResult.getValue() != 0) {
+                                message.reply("The message contains following errors:" + botMessage.error);
+                                return;
+                            }
+
+                            botMessage.message = command.tokens.get(1);
+                            botMessage.author = message.getAuthor().getId();
+                            catMessages.set(index, botMessage);
+                            if (botMessage.warnings.length() == 0)
+                                message.reply("Message successfully edited.");
+                            else
+                                message.reply("Message successfully edited with warnings:" + botMessage.warnings);
+                        } catch (IOException e) {
+                            message.reply("Something went wrong, no idea what.");
+                        }
+
+
+
+                    } else if (catMessages.size() == 0)
+                        message.reply("Category ``" + command.tokens.get(0) + "`` contains no messages.");
+                    else
+                        message.reply("Index out of bounds.");
+                } else
+                    message.reply("Category ``" + command.tokens.get(0) + "`` doesn't exist.");
+            }
+        };
+        commandSet.add(commandToAdd);
+
+
+        //.EditMessage
+        commandToAdd = new Command();
+        commandToAdd.commandName = ".EditMessage";
+        commandToAdd.permission = Command.WHITE;
+        commandToAdd.tokens.add("");
+        commandToAdd.tokens.add("");
+        commandToAdd.tokens.add("");
+        commandToAdd.tokens.add("");
+        commandToAdd.function = new CommandFunction() {
+            public void doFunction(Command command, Message message) {
+                String caseToken = command.tokens.get(3).toLowerCase().replace(" ","");
+                if (!caseToken.toLowerCase().equals("true") && !caseToken.toLowerCase().equals("false")) {
+                    message.reply("The third operand should be either true, or false.");
+                    return;
+                }
+                if (messages.containsKey(command.tokens.get(0))) {
+                    ArrayList<BotMessage> catMessages= messages.get(command.tokens.get(0));
+                    int index = Integer.parseInt(command.tokens.get(1));
+                    if (catMessages.size() > index && index >= 0) {
+
+
+                        MessageScanner messageScanner = new MessageScanner(new StringReader(command.tokens.get(2)));
+                        try {
+                            BotMessage botMessage = messageScanner.yylex();
+                            if (message == null) {
+                                message.reply("Something is terribly wrong with your message");
+                                return;
+                            }
+                            if (!botMessage.isValid()) {
+                                message.reply("The message contains following errors:" + botMessage.error);
+                                return;
+                            }
+
+                            botMessage.normalizeResources();
+
+                            Pair<Boolean, Integer> argumentEvaluationResult =  botMessage.evaluateProgramsArgumentResourceIndices(botMessage.getAvailableResources());
+
+                            if (botMessage.hasForwardReferencing() || argumentEvaluationResult.getValue() != 0) {
+                                message.reply("The message contains following errors:" + botMessage.error);
+                                return;
+                            }
+
+                            botMessage.message = command.tokens.get(1);
+                            botMessage.author = message.getAuthor().getId();
+                            catMessages.set(index, botMessage);
+                            if (botMessage.warnings.length() == 0)
+                                message.reply("Message successfully edited.");
+                            else
+                                message.reply("Message successfully edited with warnings:" + botMessage.warnings);
+                            botMessage.caseSensitive = caseToken.equals("true");
                         } catch (IOException e) {
                             message.reply("Something went wrong, no idea what.");
                         }
@@ -689,11 +794,77 @@ public class Bot {
                             return;
                         }
 
-                        botMessage.message = command.tokens.get(1);
                         botMessage.normalizeResources();
+
+                        Pair<Boolean, Integer> argumentEvaluationResult =  botMessage.evaluateProgramsArgumentResourceIndices(botMessage.getAvailableResources());
+
+                        if (botMessage.hasForwardReferencing() || argumentEvaluationResult.getValue() != 0) {
+                            message.reply("The message contains following errors:" + botMessage.error);
+                            return;
+                        }
+
+                        botMessage.message = command.tokens.get(1);
                         botMessage.author = message.getAuthor().getId();
                         catMessages.add(botMessage);
-                        message.reply("Message successfully added.");
+                        if (botMessage.warnings.length() == 0)
+                            message.reply("Message successfully added.");
+                        else
+                            message.reply("Message successfully added with warnings:" + botMessage.warnings);
+                    } catch (IOException e) {
+                        message.reply("Something went wrong, no idea what.");
+                    }
+                } else
+                    message.reply("Category ``" + command.tokens.get(0) + "`` doesn't exist.");
+            }
+        };
+        commandSet.add(commandToAdd);
+
+
+        //.AddMessage
+        commandToAdd = new Command();
+        commandToAdd.commandName = ".AddMessage";
+        commandToAdd.permission = Command.WHITE;
+        commandToAdd.tokens.add("");
+        commandToAdd.tokens.add("");
+        commandToAdd.tokens.add("");
+        commandToAdd.function = new CommandFunction() {
+            public void doFunction(Command command, Message message) {
+                String caseToken = command.tokens.get(2).toLowerCase().replace(" ","");
+                if (!caseToken.toLowerCase().equals("true") && !caseToken.toLowerCase().equals("false")) {
+                    message.reply("The third operand should be either true, or false.");
+                    return;
+                }
+                if (messages.containsKey(command.tokens.get(0))) {
+                    ArrayList<BotMessage> catMessages= messages.get(command.tokens.get(0));
+                    MessageScanner messageScanner = new MessageScanner(new StringReader(command.tokens.get(1)));
+                    try {
+                        BotMessage botMessage = messageScanner.yylex();
+                        if (message == null) {
+                            message.reply("Something is terribly wrong with your message");
+                            return;
+                        }
+                        if (!botMessage.isValid()) {
+                            message.reply("The message contains following errors:" + botMessage.error);
+                            return;
+                        }
+
+                        botMessage.normalizeResources();
+
+                        Pair<Boolean, Integer> argumentEvaluationResult =  botMessage.evaluateProgramsArgumentResourceIndices(botMessage.getAvailableResources());
+
+                        if (botMessage.hasForwardReferencing() || argumentEvaluationResult.getValue() != 0) {
+                            message.reply("The message contains following errors:" + botMessage.error);
+                            return;
+                        }
+
+                        botMessage.message = command.tokens.get(1);
+                        botMessage.author = message.getAuthor().getId();
+                        catMessages.add(botMessage);
+                        if (botMessage.warnings.length() == 0)
+                            message.reply("Message successfully added.");
+                        else
+                            message.reply("Message successfully added with warnings:" + botMessage.warnings);
+                        botMessage.caseSensitive = caseToken.equals("true");
                     } catch (IOException e) {
                         message.reply("Something went wrong, no idea what.");
                     }
@@ -801,14 +972,14 @@ public class Bot {
         commandSet.add(commandToAdd);
 
 
-        //.LoadDatabase
+        //.MergeDatabase
         commandToAdd = new Command();
-        commandToAdd.commandName = ".LoadDatabase";
+        commandToAdd.commandName = ".MergeDatabase";
         commandToAdd.permission = Command.WHITE;
         commandToAdd.tokens.add("");
         commandToAdd.function = new CommandFunction() {
             public void doFunction(Command command, Message message) {
-                if (loadDatabase(command.tokens.get(0)))
+                if (mergeDatabase(command.tokens.get(0)))
                     message.reply("Database successfully merged.");
                 else
                     message.reply("There was a problem on merging the database, try again.");
@@ -823,10 +994,7 @@ public class Bot {
         commandToAdd.permission = Command.WHITE;
         commandToAdd.function = new CommandFunction() {
             public void doFunction(Command command, Message message) {
-                messages = new HashMap<String, ArrayList<BotMessage>>();
-                responses = new HashMap<String, ArrayList<BotMessage>>();
-                resources = new HashMap<String, Trie>();
-                programs = new HashMap<String, String>();
+                resetDatabase();
                 message.reply("Database reset.");
             }
         };
@@ -1013,10 +1181,34 @@ public class Bot {
             }
         };
         commandSet.add(commandToAdd);
-    }
 
-    private boolean isValidResource(String name) {
-        return name.equals("*") || resources.containsKey(name);
+        //.SetMessageInterrupting
+        commandToAdd = new Command();
+        commandToAdd.commandName = ".SetMessageInterrupting";
+        commandToAdd.permission = Command.WHITE;
+        commandToAdd.tokens.add("");
+        commandToAdd.tokens.add("");
+        commandToAdd.tokens.add("");
+        commandToAdd.function = new CommandFunction() {
+            public void doFunction(Command command, Message message) {
+                if (messages.containsKey(command.tokens.get(0))) {
+                    ArrayList<BotMessage> catMessages= messages.get(command.tokens.get(0));
+                    int index = Integer.parseInt(command.tokens.get(1));
+                    if (catMessages.size() > index && index >= 0) {
+                        if (command.tokens.get(2).toLowerCase().equals("true") || command.tokens.get(2).toLowerCase().equals("false")) {
+                            catMessages.get(index).isInterrupting = command.tokens.get(2).toLowerCase().equals("true");
+                            message.reply("Message #" + command.tokens.get(1) + ": ``" + catMessages.get(index).message + "`` of category: ``" + command.tokens.get(0) + (catMessages.get(index).isInterrupting ? "`` is set as interrupting." : "`` is set as non-interrupting."));
+                        } else
+                            message.reply("Third token of the command should be true or false.");
+                    } else if (catMessages.size() == 0)
+                        message.reply("Category ``" + command.tokens.get(0) + "`` contains no messages.");
+                    else
+                        message.reply("Index out of bounds.");
+                } else
+                    message.reply("Category ``" + command.tokens.get(0) + "`` doesn't exist.");
+            }
+        };
+        commandSet.add(commandToAdd);
     }
 
     private void warnAuthor(final String warning, final Future<User> author) {
@@ -1039,10 +1231,60 @@ public class Bot {
         }.start();
     }
 
-    private Pair<String, Pair<BotMessage, int[]>> categorizeMessage(Message message) {
+    private boolean isValidResource(String name) {
+        return name.equals("*") || resourcesCS.containsKey(name);
+    }
+
+    private String buildResource(ResourceMessagePart resourceMessagePart, int[] endPoints, String content) {
+        if (resourceMessagePart.resourceIndex != -1)
+            return content.substring(endPoints[resourceMessagePart.resourceIndex], endPoints[resourceMessagePart.resourceIndex + 1]);
+        Random rnd = new Random(System.currentTimeMillis());
+        String result = "";
+        int count = resourceMessagePart.count;
+        if (resourceMessagePart.count < 0) {
+            count = Math.abs(rnd.nextInt()) % 10;
+            if (resourceMessagePart.count == -2)
+                count++;
+        }
+        if (resourceMessagePart.name.equals("*"))
+            return "";
+        for (int i = 0; i < count; i++)
+            result = result + resourcesCS.get(resourceMessagePart.name).getRandomKey();
+        return result;
+    }
+
+    private void gatherArguments(String[] args, ProgramMessagePart resourceMessagePart, int[] endPoints, String content) {
+        for (int j = 0; j < resourceMessagePart.arguments.size(); j++)
+            args[j] = buildResource(resourceMessagePart.arguments.get(j), endPoints, content);
+    }
+
+    private boolean runMessageProgram(String className, String functionName, String[] inputs, Message message, BotMessage botMessage, String messageCategory) {
+        Object[] args = {inputs, message};
+
+        Class funcClass = JavaSourceCompiler.loadedClasses.get(className);
+        if (funcClass == null)
+            return false;
+        Object ret = null;
+        try {
+            ret = funcClass.getDeclaredMethod(functionName, String[].class, Message.class).invoke(null, args);
+        } catch (IllegalAccessException e) {
+            e.printStackTrace();
+        } catch (InvocationTargetException e) {
+            e.printStackTrace();
+            warnAuthor("There seems to be a problem with the function: ``" + functionName + "`` of class: ``" + className + "`` response: ``" + botMessage.message + "`` of category ``" + messageCategory +"``" ,api.getUserById(botMessage.author));
+            return false;
+        } catch (NoSuchMethodException e) {
+            e.printStackTrace();
+        }
+        return (Boolean)ret;
+    }
+
+    private ArrayList<Pair<String, Pair<BotMessage, int[]>>> categorizeMessage(Message message) {
         String content = message.getContent();
         String senderMentionTag = message.getAuthor().getMentionTag();
-        HashMap <String, NFA> resourcesNFA = new HashMap<>();
+        HashMap <String, NFA> resourcesNFACI = new HashMap<>();
+        HashMap <String, NFA> resourcesNFACS = new HashMap<>();
+        ArrayList<Pair<String, Pair<BotMessage, int[]>>> results = new ArrayList<>();
         for (Map.Entry<String, ArrayList<BotMessage>> entry : messages.entrySet())//go through categories
 
             nextMessage: for (BotMessage currentCatMessage : entry.getValue()) {//go through messages in the category
@@ -1069,8 +1311,9 @@ public class Bot {
 
                 int[] endPoints = new int[currentCatMessage.messageParts.size() + 1];
                 nextMessagePart: for (int i=0; i<currentCatMessage.messageParts.size(); i++) {
+                    boolean backTrack = false;
                     MessagePart currentMessagePart = currentCatMessage.messageParts.get(i);
-                    switch (currentMessagePart.type) {
+                    currentMessagePartSwitch: switch (currentMessagePart.type) {
                         case MentionTag: {
                             String finalMentionTag;
                             if (currentMessagePart.rawMessage.equals("@sender"))
@@ -1082,12 +1325,8 @@ public class Bot {
                             if (endPoints[i + 1] > content.length())
                                 continue nextMessage;
                             if (!content.substring(endPoints[i], endPoints[i + 1]).equals(finalMentionTag) || (i == endPoints.length - 2 && endPoints[i + 1] < content.length())) {
-                                i = currentCatMessage.findPreviousVariablesSizeMessagePart(i);
-                                if (i < 0)
-                                    continue nextMessage;
-                                endPoints[i + 1]++;
-                                i--;
-                                continue nextMessagePart;
+                                backTrack = true;
+                                break currentMessagePartSwitch;
                             }
 
                             break;
@@ -1096,24 +1335,17 @@ public class Bot {
                             endPoints[i + 1] = currentMessagePart.rawMessage.length() + endPoints[i];
                             if (endPoints[i + 1] > content.length())
                                 continue nextMessage;
-                            if (!content.substring(endPoints[i], endPoints[i + 1]).equals(currentMessagePart.rawMessage) || (i == endPoints.length - 2 && endPoints[i + 1] < content.length())) {
-                                i = currentCatMessage.findPreviousVariablesSizeMessagePart(i);
-                                if (i < 0)
-                                    continue nextMessage;
-                                endPoints[i + 1]++;
-                                i--;
-                                continue nextMessagePart;
+                            String contentSubstring = content.substring(endPoints[i], endPoints[i + 1]);
+                            if (!(currentCatMessage.caseSensitive?contentSubstring:contentSubstring.toLowerCase()).equals(currentCatMessage.caseSensitive?currentMessagePart.rawMessage:currentMessagePart.rawMessage.toLowerCase()) || (i == endPoints.length - 2 && endPoints[i + 1] < content.length())) {
+                                backTrack = true;
+                                break currentMessagePartSwitch;
                             }
                             break;
                         }
                         case Resource: {
                             if (endPoints[i + 1] > content.length()) {//this check needs to be done coz on a return back state we this might get violated
-                                i = currentCatMessage.findPreviousVariablesSizeMessagePart(i);
-                                if (i < 0)
-                                    continue nextMessage;
-                                endPoints[i + 1]++;
-                                i--;
-                                continue nextMessagePart;
+                                backTrack = true;
+                                break currentMessagePartSwitch;
                             }
                             if (currentMessagePart.resource.count == 0)//this is useless but still we process it
                                 if ((endPoints[i + 1] - endPoints[i]) == 0)//this should take no token, if it does, return back
@@ -1127,50 +1359,45 @@ public class Bot {
                                 break;
                             }
 
+                            Trie currentResourceTrie = (currentMessagePart.resource.isCaseSensitive?resourcesCS.get(currentMessagePart.resource.name):resourcesCI.get(currentMessagePart.resource.name));
+                            HashMap <String, NFA> resourcesNFA = (currentMessagePart.resource.isCaseSensitive?resourcesNFACS:resourcesNFACI);
+
                             if (currentMessagePart.resource.count < 0) {//either a + or * case happening
                                 NFA currentResource;
-                                if (resourcesNFA.containsKey(currentMessagePart.resource.name))
+                                if ((resourcesNFA).containsKey(currentMessagePart.resource.name))
                                     currentResource = resourcesNFA.get(currentMessagePart.resource.name);
                                 else {
                                     currentResource = new NFA();
                                     resourcesNFA.put(currentMessagePart.resource.name, currentResource);
-                                    for (String res : resources.get(currentMessagePart.resource.name).getKeys())
+                                    for (String res : currentResourceTrie.getKeys())
                                         currentResource.put(res);
                                 }
                                 LinkedList<NFA> dsts = new LinkedList<>();
                                 dsts.add(currentResource);
                                 for (int j = endPoints[i]; j < endPoints[i + 1]; j++)
-                                    dsts = currentResource.process(content.charAt(j), dsts);
+                                    dsts = currentResource.process((currentMessagePart.resource.isCaseSensitive?content:content.toLowerCase()).charAt(j), dsts);
                                 while (!currentResource.accepts(dsts) || (currentMessagePart.resource.count == -2 && (endPoints[i + 1] - endPoints[i]) == 0)) {
                                     if (endPoints[i + 1] >= content.length() || dsts.size() == 0) {
-                                        i = currentCatMessage.findPreviousVariablesSizeMessagePart(i);
-                                        if (i < 0)
-                                            continue nextMessage;
-                                        endPoints[i + 1]++;
-                                        i--;
-                                        continue nextMessagePart;
+                                        backTrack = true;
+                                        break currentMessagePartSwitch;
                                     }
-                                    dsts = currentResource.process(content.charAt(endPoints[i + 1]), dsts);
+                                    dsts = currentResource.process((currentMessagePart.resource.isCaseSensitive?content:content.toLowerCase()).charAt(endPoints[i + 1]), dsts);
                                     endPoints[i + 1]++;
                                 }
                             } else {
-                                Trie dst = resources.get(currentMessagePart.resource.name);
+                                Trie dst = currentResourceTrie;
                                 for (int j = endPoints[i]; j < endPoints[i + 1]; j++) {
-                                    dst = dst.process(content.charAt(j));
+                                    dst = dst.process((currentMessagePart.resource.isCaseSensitive?content:content.toLowerCase()).charAt(j));
                                     if (dst == null)
                                         break;
                                 }
 
                                 while (dst == null || !dst.accepts()) {
                                     if (dst == null || endPoints[i + 1] >= content.length()) {
-                                        i = currentCatMessage.findPreviousVariablesSizeMessagePart(i);
-                                        if (i < 0)
-                                            continue nextMessage;
-                                        endPoints[i + 1]++;
-                                        i--;
-                                        continue nextMessagePart;
+                                        backTrack = true;
+                                        break currentMessagePartSwitch;
                                     }
-                                    dst = dst.process(content.charAt(endPoints[i + 1]));
+                                    dst = dst.process((currentMessagePart.resource.isCaseSensitive?content:content.toLowerCase()).charAt(endPoints[i + 1]));
                                     endPoints[i + 1]++;
                                 }
 
@@ -1179,40 +1406,51 @@ public class Bot {
                         }
                         case Program: {
                             if (endPoints[i + 1] > content.length()) {//this check needs to be done coz on a return back state we this might get violated
-                                i = currentCatMessage.findPreviousVariablesSizeMessagePart(i);
-                                if (i < 0)
-                                    continue nextMessage;
+                                backTrack = true;
+                                break currentMessagePartSwitch;
+                            }
+
+
+                            String[] args = new String[currentMessagePart.program.arguments.size() + 1];
+
+                            gatherArguments(args, currentMessagePart.program, endPoints, content);
+                            args[currentMessagePart.program.arguments.size()] = content.substring(endPoints[i], endPoints[i + 1]);
+                            while (!runMessageProgram(currentMessagePart.program.className, currentMessagePart.program.functionName,args, message, currentCatMessage, entry.getKey())) {//check if there the program accepts
                                 endPoints[i + 1]++;
-                                i--;
-                                continue nextMessagePart;
+                                if (endPoints[i + 1] > content.length()) {
+                                    backTrack = true;
+                                    break currentMessagePartSwitch;
+                                }
+                                args[currentMessagePart.program.arguments.size()] = content.substring(endPoints[i], endPoints[i + 1]);
                             }
 
                             break;
                         }
                     }
-                    if (i == endPoints.length - 2 && endPoints[i+1] == content.length())
-                        return new Pair<String, Pair<BotMessage, int[]>>(entry.getKey(), new Pair<BotMessage, int[]>(currentCatMessage, endPoints));
-                    else if (i < endPoints.length - 3)
+
+
+                    if (backTrack) {//back track and find an other possible combination
+                        i = currentCatMessage.findPreviousVariablesSizeMessagePart(i);
+                        if (i < 0)
+                            continue nextMessage;
+                        endPoints[i + 1]++;
+                        i--;
+                        continue nextMessagePart;
+                    }
+
+
+                    if (i == endPoints.length - 2 && endPoints[i+1] == content.length()) {
+                        results.add(new Pair<String, Pair<BotMessage, int[]>>(entry.getKey(), new Pair<BotMessage, int[]>(currentCatMessage, endPoints)));
+                        if (currentCatMessage.isInterrupting
+                                )
+                            return results;
+                    } else if (i < endPoints.length - 3)
                         endPoints[i + 2] = endPoints[i + 1];
                     else if (i == endPoints.length - 3)
                         endPoints[i + 2] = content.length();
                 }
             }
-        return null;
-    }
-
-    private String buildResource(ResourceMessagePart resourceMessagePart) {
-        Random rnd = new Random(System.currentTimeMillis());
-        String result = "";
-        int count = resourceMessagePart.count;
-        if (resourceMessagePart.count < 0) {
-            count = Math.abs(rnd.nextInt()) % 10;
-            if (resourceMessagePart.count == -2)
-                count++;
-        }
-        for (int i = 0; i < count; i++)
-            result = result + resources.get(resourceMessagePart.name).getRandomKey();
-        return result;
+        return results;
     }
 
     private String runResponseProgram(String className, String functionName, String[] inputs, Message message, BotMessage response, String messageCategory) {
@@ -1236,8 +1474,6 @@ public class Bot {
         return (String)ret;
     }
 
-
-
     private String generateResponse(Pair<String, Pair<BotMessage, int[]>> category, Message message) {
         String senderMentionTag = message.getAuthor().getMentionTag();
         String content = message.getContent();
@@ -1248,6 +1484,8 @@ public class Bot {
         BotMessage minimumDanglingResourceResponse = null;
         int minimumDanglingRecourseCount;
 
+        int[] endPoints = category.getValue().getValue();
+
         ArrayList<BotMessage> catResponses = responses.get(category.getKey());
 
         if (catResponses.size() == 0) {
@@ -1255,14 +1493,7 @@ public class Bot {
             return null;
         }
 
-        ArrayList<Pair<String, ResourceMessagePart>> messageResources = new ArrayList<>(category.getValue().getKey().messageParts.size());
-        for (int i = 0; i < category.getValue().getKey().messageParts.size(); i++) {
-            MessagePart messagePart = category.getValue().getKey().messageParts.get(i);
-            if (messagePart.type == MessagePart.MessagePartType.Resource && messagePart.resource.id != -1)
-                messageResources.add(new Pair<String, ResourceMessagePart>(content.substring(category.getValue().getValue()[i], category.getValue().getValue()[i + 1]), messagePart.resource));
-        }
-
-        boolean[] isInUse = new boolean[messageResources.size()];
+        ArrayList<Pair<Integer, ResourceMessagePart>> messageResources = category.getValue().getKey().getAvailableResources();
 
         minimumDanglingRecourseCount = catResponses.get(0).messageParts.size();
 
@@ -1287,78 +1518,16 @@ public class Bot {
             if (message.getChannelReceiver() != null && response.isTestFeature && !testChannels.contains(message.getChannelReceiver().getMentionTag()))
                 continue nextResponse;
 
-            boolean isPerfect = true;
-            int numberOfDanglingResources = 0;
+            Pair<Boolean, Integer> responseConditions = response.evaluateReferencedResourceIndices(messageResources);
 
-            for (int i=0; i<isInUse.length; i++)
-                isInUse[i] = false;
-
-            for (MessagePart responseMessagePart : response.messageParts)
-                if (responseMessagePart.type == MessagePart.MessagePartType.Resource) {
-                    boolean resourceIsPerfect = false;
-                    int i = 0;
-                    if (responseMessagePart.resource.id != -1) {
-                        Pair<String, ResourceMessagePart> compatibleResource = null;
-                        for (Pair<String, ResourceMessagePart> resource : messageResources) {
-                            if (resource.getValue().equals(responseMessagePart.resource)) {
-                                compatibleResource = resource;
-                                if (!isInUse[i]) {
-                                    resourceIsPerfect = true;
-                                    isInUse[i] = true;
-                                    break;
-                                }
-                            }
-                            i++;
-                        }
-                        if (compatibleResource == null) {
-                            numberOfDanglingResources++;
-                            if (responseMessagePart.resource.name.equals("*"))
-                                continue;
-                        }
-                        isPerfect = isPerfect && resourceIsPerfect;
-                    }
-                } else if (responseMessagePart.type == MessagePart.MessagePartType.Program) {
-                    if (!JavaSourceCompiler.classExists(responseMessagePart.program.className)) {
-                        warnAuthor("Class: ``" + responseMessagePart.program.className + "`` used in message ``" + response.message + "`` of category ``" + category.getKey() + "`` does not exist.", api.getUserById(response.author));
-                        continue nextResponse;
-                    } else if (!JavaSourceCompiler.functionExists(responseMessagePart.program.className, responseMessagePart.program.functionName)) {
-                        warnAuthor("Function: ``" + responseMessagePart.program.functionName + "`` of class: ``" + responseMessagePart.program.className + "`` used in message ``" + response.message + "`` of category ``" + category.getKey() + "`` does not exist.", api.getUserById(response.author));
-                        continue nextResponse;
-                    }
-
-                    for (ResourceMessagePart currentArgument : responseMessagePart.program.arguments) {
-                        boolean resourceIsPerfect = false;
-                        int i = 0;
-                        if (currentArgument.id != -1) {
-                            Pair<String, ResourceMessagePart> compatibleResource = null;
-                            for (Pair<String, ResourceMessagePart> resource : messageResources) {
-                                if (resource.getValue().equals(currentArgument)) {
-                                    compatibleResource = resource;
-                                    if (!isInUse[i]) {
-                                        resourceIsPerfect = true;
-                                        isInUse[i] = true;
-                                        break;
-                                    }
-                                }
-                                i++;
-                            }
-                            if (compatibleResource == null) {
-                                numberOfDanglingResources++;
-                                if (currentArgument.name.equals("*"))
-                                    continue;
-                            }
-                            isPerfect = isPerfect && resourceIsPerfect;
-                        }
-                    }
-                }
-            if (numberOfDanglingResources < minimumDanglingRecourseCount) {
-                minimumDanglingRecourseCount = numberOfDanglingResources;
+            if (responseConditions.getValue() < minimumDanglingRecourseCount) {
+                minimumDanglingRecourseCount = responseConditions.getValue();
                 minimumDanglingResourceResponse = response;
             }
-            if (numberOfDanglingResources == 0) {
+            if (responseConditions.getValue() == 0) {
                 viableResponses.add(response);
 
-                if (isPerfect)
+                if (responseConditions.getKey())
                     perfectResponses.add(response);
             }
         }
@@ -1378,9 +1547,6 @@ public class Bot {
 
         String generatedResponse = "";
 
-        for (int i=0; i<isInUse.length; i++)
-            isInUse[i] = false;
-
         for (MessagePart currentMessagePart : response.messageParts) {
             switch (currentMessagePart.type) {
                 case RawMessage: {
@@ -1392,59 +1558,12 @@ public class Bot {
                     break;
                 }
                 case Resource:{
-                    if (currentMessagePart.resource.count == 0)
-                        break;
-                    if (currentMessagePart.resource.id == -1) {
-                        generatedResponse = generatedResponse + buildResource(currentMessagePart.resource);
-                    } else {
-                        for (int i = 0; i < isInUse.length; i++)
-                            isInUse[i] = false;
-
-                        int i = 0;
-                        Pair<String, ResourceMessagePart> compatibleResource = null;
-                        for (Pair<String, ResourceMessagePart> resource : messageResources) {
-                            if (resource.getValue().equals(currentMessagePart.resource)) {
-                                compatibleResource = resource;
-                                if (!isInUse[i]) {
-                                    isInUse[i] = true;
-                                    break;
-                                }
-                            }
-                            i++;
-
-                            if (compatibleResource != null)
-                                generatedResponse = generatedResponse + compatibleResource.getKey();
-                            else
-                                generatedResponse = generatedResponse + buildResource(currentMessagePart.resource);
-
-                        }
-                    }
+                    generatedResponse = generatedResponse + buildResource(currentMessagePart.resource, endPoints, content);
                     break;
                 }
                 case Program: {
                     String[] args = new String[currentMessagePart.program.arguments.size()];
-                    for (int j = 0; j < args.length; j++) {
-                        ResourceMessagePart currentArgument = currentMessagePart.program.arguments.get(j);
-                        int i = 0;
-                        if (currentArgument.id != -1) {
-                            Pair<String, ResourceMessagePart> compatibleResource = null;
-                            for (Pair<String, ResourceMessagePart> resource : messageResources) {
-                                if (resource.getValue().equals(currentArgument)) {
-                                    compatibleResource = resource;
-                                    if (!isInUse[i]) {
-                                        isInUse[i] = true;
-                                        break;
-                                    }
-                                }
-                                i++;
-                            }
-                            if (compatibleResource != null)
-                                args[j] = compatibleResource.getKey();
-                            else
-                                args[j] = buildResource(currentArgument);
-                        } else
-                            args[j] = buildResource(currentArgument);
-                    }
+                    gatherArguments(args, currentMessagePart.program, endPoints, content);
                     String programResponse = runResponseProgram(currentMessagePart.program.className, currentMessagePart.program.functionName, args, message, response, category.getKey());
                     if (programResponse == null)
                         return null;
@@ -1479,9 +1598,9 @@ public class Bot {
                             for (Command command : commands)
                                 command.function.doFunction(command, message);
                         } else if (acquirePermission(message) != Command.BLACK) {
-                            Pair<String, Pair<BotMessage, int[]>> category = categorizeMessage(message);
-                            if (category != null) {
-                                String response = generateResponse(category, message);
+                            ArrayList<Pair<String, Pair<BotMessage, int[]>>> messages = categorizeMessage(message);
+                            for (Pair<String, Pair<BotMessage, int[]>> categorizedMessage : messages) {
+                                String response = generateResponse(categorizedMessage, message);
                                 if (response != null)
                                     message.reply(response);
                             }

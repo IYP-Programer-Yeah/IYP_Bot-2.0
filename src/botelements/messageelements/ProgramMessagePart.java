@@ -1,5 +1,8 @@
 package botelements.messageelements;
 
+import botelements.Bot;
+import javafx.util.Pair;
+
 import java.io.Serializable;
 import java.util.ArrayList;
 
@@ -10,6 +13,7 @@ public class ProgramMessagePart implements Serializable{
     public String className;
     public String functionName;
     public ArrayList<ResourceMessagePart> arguments = new ArrayList<>();
+
     public boolean isValid() {
         for (ResourceMessagePart currentArgument : arguments)
             if (!currentArgument.isValid())
@@ -25,5 +29,22 @@ public class ProgramMessagePart implements Serializable{
                 }
                 arguments.get(i).count = 1;
             }
+    }
+    public Pair<Boolean, Integer> evaluateArgumentResourceIndices(ArrayList<Pair<Integer, ResourceMessagePart>> availableResources, boolean[] isInUse) {
+        boolean isPerfect = true;
+        int danglingResourceCount = 0;
+        for (ResourceMessagePart argument : arguments) {
+                Pair<Boolean, Boolean> resourceIndex = argument.evaluateResourceIndex(availableResources, isInUse);
+                if (!resourceIndex.getValue())
+                    danglingResourceCount++;
+                isPerfect = isPerfect && resourceIndex.getKey();
+            }
+        return new Pair<>(isPerfect, danglingResourceCount);
+    }
+    public boolean checkForwardReferencing(int i) {
+        for (ResourceMessagePart argument : arguments)
+            if (argument.resourceIndex>i)
+                return true;
+        return false;
     }
 }

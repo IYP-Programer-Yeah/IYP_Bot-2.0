@@ -18,7 +18,7 @@ import java.util.ArrayList;
 	private ResourceMessagePart currentResource;
 	private ProgramMessagePart currentProgram;
 	
-	private int resourceRetrunState;
+	private int resourceReturnState;
 	
     public int getLine() {
         return yyline + 1;
@@ -46,9 +46,13 @@ DecimalDigit = [0-9]
 DecimalIntegerConstant = [+-]?{DecimalDigit}+
 PositiveDecimalIntegerConstant = [+]?{DecimalDigit}+
 
+True = [Tt][Rr][Uu][Ee]
+False = [Ff][Aa][Ll][Ss][Ee]
+
 %state RESOURCE_STATE
 %state RESOURCE_ID_STATE
 %state RESOURCE_COUNT_STATE
+%state RESOURCE_CASE_STATE
 
 %state PROGRAM_CLASS_STATE
 %state PROGRAM_FUNCTION_STATE
@@ -81,7 +85,7 @@ PositiveDecimalIntegerConstant = [+]?{DecimalDigit}+
 		currentPart.resource = new ResourceMessagePart();
 		currentPart.type = MessagePart.MessagePartType.Resource;
 		currentResource = currentPart.resource;
-		resourceRetrunState = YYINITIAL;
+		resourceReturnState = YYINITIAL;
 		yybegin(RESOURCE_STATE);
 		//further process on the currentResource
 		message.messageParts.add(currentPart);
@@ -115,13 +119,13 @@ PositiveDecimalIntegerConstant = [+]?{DecimalDigit}+
 		yybegin(RESOURCE_ID_STATE);
 	}
 	[\>] {
-		yybegin(resourceRetrunState);
+		yybegin(resourceReturnState);
 	}
 	{RawMessage} {
 		currentResource.name = currentResource.name + yytext();
 	}
 	<<EOF>> {
-		yybegin(resourceRetrunState);
+		yybegin(resourceReturnState);
 	}
 }
 
@@ -130,10 +134,10 @@ PositiveDecimalIntegerConstant = [+]?{DecimalDigit}+
 		yybegin(RESOURCE_COUNT_STATE);
 	}
 	[\}] {
-		yybegin(resourceRetrunState);
+		yybegin(resourceReturnState);
 	}
 	<<EOF>> {
-		yybegin(resourceRetrunState);
+		yybegin(resourceReturnState);
 	}
 	{DecimalIntegerConstant} {
 		currentResource.id = Integer.parseInt(yytext());
@@ -143,11 +147,14 @@ PositiveDecimalIntegerConstant = [+]?{DecimalDigit}+
 }
 
 <RESOURCE_COUNT_STATE> {
+	"}{" {
+		yybegin(RESOURCE_CASE_STATE);
+	}
 	[\}] {
-		yybegin(resourceRetrunState);
+		yybegin(resourceReturnState);
 	}
 	<<EOF>> {
-		yybegin(resourceRetrunState);
+		yybegin(resourceReturnState);
 	}
 	{PositiveDecimalIntegerConstant} {
 		currentResource.count = Integer.parseInt(yytext());
@@ -159,6 +166,21 @@ PositiveDecimalIntegerConstant = [+]?{DecimalDigit}+
 		currentResource.count = -2;
 	}
 	[^] {
+	}
+}
+
+<RESOURCE_CASE_STATE> {
+	[\}] {
+		yybegin(resourceReturnState);
+	}
+	<<EOF>> {
+		yybegin(resourceReturnState);
+	}
+	{True} {
+		currentResource.isCaseSensitive = true;
+	}
+	{False} {
+	    currentResource.isCaseSensitive = false;
 	}
 }
 

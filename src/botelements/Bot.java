@@ -1209,6 +1209,76 @@ public class Bot {
             }
         };
         commandSet.add(commandToAdd);
+
+        //?Help
+        commandToAdd = new Command();
+        commandToAdd.commandName = "?Help";
+        commandToAdd.permission = Command.WHITE;
+        commandToAdd.function = new CommandFunction() {
+            public void doFunction(Command command, Message message) {
+                message.reply("```" +
+                        ".NewCat [Cat] \n" +
+                        ".AddMessage [Cat][Message]\n" +
+                        ".AddResponse [Cat][Response]\n" +
+                        ".ListCats\n" +
+                        ".ListMessages [Cat]\n" +
+                        ".ListResponses [Cat]\n" +
+                        ".RemoveCat [Cat]\n" +
+                        ".RemoveMessage [Cat][Message]\n" +
+                        ".RemoveResponse [Cat][Response]\n" +
+                        ".NewRes [Res]\n" +
+                        ".AddToRes [Res][Element]\n" +
+                        ".ListRess\n" +
+                        ".ListResElements [Res]\n" +
+                        ".RemoveRes [Res]\n" +
+                        ".RemoveFromRes [Res][Element]\n" +
+                        ".NewProgram [Class][Program]\n" +
+                        ".RemoveProgram [Class]\n" +
+                        ".ListPrograms\n" +
+                        ".Permission [Channel/Member/Role] [White/Black/Admin] [Tag]\n" +
+                        ".NotifyMeWarnings\n" +
+                        ".Don'tNotifyMeWarnings\n" +
+                        ".SaveDatabase [File Name]\n" +
+                        ".LoadDatabase [File Name]\n" +
+                        ".MergerDatabase [File Name]\n" +
+                        ".Reset\n" +
+                        ".AddChannelToTest\n" +
+                        ".RemoveChannelFromTest\n" +
+                        ".SetMessageAsTest [Category][Message ID]\n" +
+                        ".SetMessageAsFinal[Category][Message ID]\n" +
+                        ".SetResponseAsTest [Category][Response ID]\n" +
+                        ".SetResponseAsFinal[Category][Response ID]\n" +
+                        ".EditMessage[Category][Message ID][Message]\n" +
+                        ".EditResponse[Category][Response ID][Response]\n" +
+                        ".SetMessageInterrupting [Category][Message ID][True/False]\n" +
+                        "?Help\n" +
+                        ".FullDoc\n" +
+                        ".SourceCode```");
+            }
+        };
+        commandSet.add(commandToAdd);
+
+        //.FullDoc
+        commandToAdd = new Command();
+        commandToAdd.commandName = ".FullDoc";
+        commandToAdd.permission = Command.NONE;
+        commandToAdd.function = new CommandFunction() {
+            public void doFunction(Command command, Message message) {
+                message.reply("https://discord.gg/nuzz6z6");
+            }
+        };
+        commandSet.add(commandToAdd);
+
+        //.SourceCode
+        commandToAdd = new Command();
+        commandToAdd.commandName = ".SourceCode";
+        commandToAdd.permission = Command.NONE;
+        commandToAdd.function = new CommandFunction() {
+            public void doFunction(Command command, Message message) {
+                message.reply("https://github.com/IYP-Programer-Yeah/IYP_Bot-2.0");
+            }
+        };
+        commandSet.add(commandToAdd);
     }
 
     private void warnAuthor(final String warning, final Future<User> author) {
@@ -1441,8 +1511,7 @@ public class Bot {
 
                     if (i == endPoints.length - 2 && endPoints[i+1] == content.length()) {
                         results.add(new Pair<String, Pair<BotMessage, int[]>>(entry.getKey(), new Pair<BotMessage, int[]>(currentCatMessage, endPoints)));
-                        if (currentCatMessage.isInterrupting
-                                )
+                        if (currentCatMessage.isInterrupting)
                             return results;
                     } else if (i < endPoints.length - 3)
                         endPoints[i + 2] = endPoints[i + 1];

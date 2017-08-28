@@ -1,6 +1,5 @@
 package Utility;
 
-import de.btobastian.javacord.entities.message.Message;
 import javafx.util.Pair;
 
 import javax.tools.*;
@@ -18,22 +17,6 @@ import java.util.HashMap;
  */
 public class JavaSourceCompiler {
     public static HashMap<String, Class> loadedClasses = new HashMap<>();
-
-    public static boolean classExists(String className) {
-        return loadedClasses.keySet().contains(className);
-    }
-
-    public static boolean functionExists(String className, String functionName) {
-        try {
-            if (!classExists(className))
-                return false;
-            loadedClasses.get(className).getDeclaredMethod(functionName, String[].class, Message.class);
-            return true;
-        } catch (NoSuchMethodException e) {
-            e.printStackTrace();
-            return false;
-        }
-    }
 
     public static Pair<String, Boolean> compileString (String code, String name) {
         JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();

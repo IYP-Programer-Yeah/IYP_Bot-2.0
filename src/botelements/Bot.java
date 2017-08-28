@@ -1332,8 +1332,10 @@ public class Bot {
         Object[] args = {inputs, message};
 
         Class funcClass = JavaSourceCompiler.loadedClasses.get(className);
-        if (funcClass == null)
+        if (funcClass == null) {
+            warnAuthor("The class: ``" + className + "`` used in message: ``" + botMessage.message + "`` of category ``" + messageCategory +"`` does not exist." ,api.getUserById(botMessage.author));
             return false;
+        }
         Object ret = null;
         try {
             ret = funcClass.getDeclaredMethod(functionName, String[].class, Message.class).invoke(null, args);
@@ -1341,10 +1343,11 @@ public class Bot {
             e.printStackTrace();
         } catch (InvocationTargetException e) {
             e.printStackTrace();
-            warnAuthor("There seems to be a problem with the function: ``" + functionName + "`` of class: ``" + className + "`` response: ``" + botMessage.message + "`` of category ``" + messageCategory +"``" ,api.getUserById(botMessage.author));
+            warnAuthor("There seems to be a problem with the function: ``" + functionName + "`` of class: ``" + className + "`` message: ``" + botMessage.message + "`` of category ``" + messageCategory +"``" ,api.getUserById(botMessage.author));
             return false;
         } catch (NoSuchMethodException e) {
             e.printStackTrace();
+            warnAuthor("The function: ``" + functionName + "`` of class: ``" + className + "`` used in message: ``" + botMessage.message + "`` of category ``" + messageCategory +"`` does not exist." ,api.getUserById(botMessage.author));
         }
         return (Boolean)ret;
     }
@@ -1526,8 +1529,10 @@ public class Bot {
         Object[] args = {inputs, message};
 
         Class funcClass = JavaSourceCompiler.loadedClasses.get(className);
-        if (funcClass == null)
-            return "";
+        if (funcClass == null) {
+            warnAuthor("The class: ``" + className + "`` used in response: ``" + response.message + "`` of category ``" + messageCategory +"`` does not exist." ,api.getUserById(response.author));
+            return null;
+        }
         Object ret = null;
         try {
             ret = funcClass.getDeclaredMethod(functionName, String[].class, Message.class).invoke(null, args);
@@ -1536,9 +1541,10 @@ public class Bot {
         } catch (InvocationTargetException e) {
             e.printStackTrace();
             warnAuthor("There seems to be a problem with the function: ``" + functionName + "`` of class: ``" + className + "`` response: ``" + response.message + "`` of category ``" + messageCategory +"``" ,api.getUserById(response.author));
-            return "";
+            return null;
         } catch (NoSuchMethodException e) {
             e.printStackTrace();
+            warnAuthor("The function: ``" + functionName + "`` of class: ``" + className + "`` response: ``" + response.message + "`` of category ``" + messageCategory +"`` does not exist." ,api.getUserById(response.author));
         }
         return (String)ret;
     }

@@ -2,8 +2,6 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="bb2a0e45-6732-4760-b1e0-e1e979aa3415" name="Default" comment="">
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/src/Utility/JavaSourceCompiler.java" afterPath="$PROJECT_DIR$/src/Utility/JavaSourceCompiler.java" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/src/botelements/Bot.java" afterPath="$PROJECT_DIR$/src/botelements/Bot.java" />
     </list>
     <ignored path="IYP_Bot 2.0.iws" />
@@ -27,11 +25,11 @@
   </component>
   <component name="FileEditorManager">
     <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
-      <file leaf-file-name="Bot.java" pinned="false" current-in-tab="false">
+      <file leaf-file-name="Bot.java" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/src/botelements/Bot.java">
           <provider selected="true" editor-type-id="text-editor">
-            <state vertical-scroll-proportion="0.0">
-              <caret line="1531" column="32" selection-start-line="1531" selection-start-column="32" selection-end-line="1531" selection-end-column="32" />
+            <state vertical-scroll-proportion="0.5452794">
+              <caret line="1266" column="86" selection-start-line="1266" selection-start-column="86" selection-end-line="1266" selection-end-column="86" />
               <folding>
                 <element signature="imports" expanded="true" />
               </folding>
@@ -85,10 +83,10 @@
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="ResourceMessagePart.java" pinned="false" current-in-tab="true">
+      <file leaf-file-name="ResourceMessagePart.java" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/src/botelements/messageelements/ResourceMessagePart.java">
           <provider selected="true" editor-type-id="text-editor">
-            <state vertical-scroll-proportion="0.7707129">
+            <state vertical-scroll-proportion="0.0">
               <caret line="45" column="1" selection-start-line="45" selection-start-column="1" selection-end-line="45" selection-end-column="1" />
               <folding />
             </state>
@@ -139,8 +137,8 @@
         <option value="$PROJECT_DIR$/src/botelements/messageelements/ProgramMessagePart.java" />
         <option value="$PROJECT_DIR$/src/botelements/messageelements/BotMessage.java" />
         <option value="$PROJECT_DIR$/src/Utility/JavaSourceCompiler.java" />
-        <option value="$PROJECT_DIR$/src/botelements/Bot.java" />
         <option value="$PROJECT_DIR$/src/Main.java" />
+        <option value="$PROJECT_DIR$/src/botelements/Bot.java" />
       </list>
     </option>
   </component>
@@ -1087,16 +1085,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/src/botelements/Bot.java">
-      <provider selected="true" editor-type-id="text-editor">
-        <state vertical-scroll-proportion="0.0">
-          <caret line="1531" column="32" selection-start-line="1531" selection-start-column="32" selection-end-line="1531" selection-end-column="32" />
-          <folding>
-            <element signature="imports" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/src/Main.java">
       <provider selected="true" editor-type-id="text-editor">
         <state vertical-scroll-proportion="0.0">
@@ -1109,9 +1097,19 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/src/botelements/messageelements/ResourceMessagePart.java">
       <provider selected="true" editor-type-id="text-editor">
-        <state vertical-scroll-proportion="0.7707129">
+        <state vertical-scroll-proportion="0.0">
           <caret line="45" column="1" selection-start-line="45" selection-start-column="1" selection-end-line="45" selection-end-column="1" />
           <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/botelements/Bot.java">
+      <provider selected="true" editor-type-id="text-editor">
+        <state vertical-scroll-proportion="0.5452794">
+          <caret line="1266" column="86" selection-start-line="1266" selection-start-column="86" selection-end-line="1266" selection-end-column="86" />
+          <folding>
+            <element signature="imports" expanded="true" />
+          </folding>
         </state>
       </provider>
     </entry>

@@ -1264,7 +1264,7 @@ public class Bot {
         commandToAdd.permission = Command.NONE;
         commandToAdd.function = new CommandFunction() {
             public void doFunction(Command command, Message message) {
-                message.reply("https://discord.gg/nuzz6z6");
+                message.reply("https://www.gamedev.net/blogs/entry/2263548-iyp-bot-20/");
             }
         };
         commandSet.add(commandToAdd);

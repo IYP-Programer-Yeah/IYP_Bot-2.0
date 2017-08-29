@@ -7,15 +7,14 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
 
-import Utility.JavaSourceCompiler;
-import Utility.NFA;
-import Utility.Trie;
+import utility.JavaSourceCompiler;
+import utility.NFA;
+import utility.Trie;
 import botelements.messageelements.BotMessage;
 import botelements.messageelements.MessagePart;
 import botelements.messageelements.ProgramMessagePart;
 import botelements.messageelements.ResourceMessagePart;
 import com.google.common.util.concurrent.FutureCallback;
-import com.sun.org.apache.xpath.internal.operations.Bool;
 import de.btobastian.javacord.DiscordAPI;
 import de.btobastian.javacord.Javacord;
 import de.btobastian.javacord.entities.User;

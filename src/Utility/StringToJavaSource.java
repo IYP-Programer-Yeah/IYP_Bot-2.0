@@ -1,4 +1,4 @@
-package Utility;
+package utility;
 
 import javax.tools.JavaFileObject;
 import javax.tools.SimpleJavaFileObject;

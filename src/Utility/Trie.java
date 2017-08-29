@@ -1,4 +1,4 @@
-package Utility;
+package utility;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -58,6 +58,6 @@ public class Trie implements Serializable {
     }
     public String getRandomKey() {
         Random rnd = new Random(System.currentTimeMillis());
-        return keys.get(rnd.nextInt()%keys.size());
+        return keys.get(Math.abs(rnd.nextInt()%keys.size()));
     }
 }

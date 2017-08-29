@@ -1,4 +1,4 @@
-package Utility;
+package utility;
 
 import javafx.util.Pair;
 

@@ -209,7 +209,7 @@ public class Bot {
 
             for (Role userRole : rolesCollection) {
                 int currentRole = rolePermission;
-                if (rolesPermission.containsKey(userRole.getId()))
+                if (rolesPermission.containsKey(userRole.getMentionTag()))
                     currentRole = rolesPermission.get(userRole.getId());
                 if (rolePermission == Command.NONE && currentRole == Command.BLACK)
                     rolePermission = Command.BLACK;

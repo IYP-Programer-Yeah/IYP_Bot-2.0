@@ -41,4 +41,15 @@ List of built-in commands:
 .SourceCode
 .FullDoc
 ```
+
+### Setting things up
+To set things up simply replace the "token" string with the token string provided by discord, and replace "saves directory" with the directory of your saves.
+```java
+import botelements.Bot;
+public class Main {
+  public static void main(String[] args) {
+    new Bot("token", "saves directory");
+  }
+}
+```
   
